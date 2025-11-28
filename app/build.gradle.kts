@@ -57,4 +57,23 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Health Connect API (for stegdata)
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+
+    // Charts/Graphs (for att visa progress)
+    implementation("com.patrykandpatrick.vico:compose:1.13.1")
+
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
+    // Notifications
+    implementation("androidx.core:core-ktx:1.12.0")
 }
