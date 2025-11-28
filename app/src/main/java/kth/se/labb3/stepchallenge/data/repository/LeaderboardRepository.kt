@@ -1,4 +1,4 @@
-package se.kth.stepchallenge.data.repository
+package kth.se.labb3.stepchallenge.data.repository
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
@@ -7,14 +7,12 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import se.kth.stepchallenge.data.model.LeaderboardEntry
-import se.kth.stepchallenge.data.model.LeaderboardPeriod
-import se.kth.stepchallenge.data.model.StepData
-import se.kth.stepchallenge.data.model.User
-import java.time.DayOfWeek
+import kth.se.labb3.stepchallenge.data.model.LeaderboardEntry
+import kth.se.labb3.stepchallenge.data.model.LeaderboardPeriod
+import kth.se.labb3.stepchallenge.data.model.StepData
+import kth.se.labb3.stepchallenge.data.model.User
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
 
 /**
  * Repository for managing leaderboard data in Firebase Firestore.
@@ -26,7 +24,6 @@ class LeaderboardRepository(
         private const val TAG = "LeaderboardRepository"
         private const val USERS_COLLECTION = "users"
         private const val STEP_DATA_COLLECTION = "step_data"
-        private const val LEADERBOARD_COLLECTION = "leaderboards"
     }
 
     /**
@@ -209,7 +206,7 @@ class LeaderboardRepository(
                         LeaderboardEntry(
                             rank = index + 1,
                             userId = stepData?.userId ?: "",
-                            displayName = "User", // Would need to fetch user data
+                            displayName = "User",
                             steps = stepData?.steps ?: 0,
                             isCurrentUser = stepData?.userId == currentUserId
                         )

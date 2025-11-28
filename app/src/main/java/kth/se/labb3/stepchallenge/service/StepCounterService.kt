@@ -1,16 +1,19 @@
-import android.app.*
+package kth.se.labb3.stepchallenge.service
+
+import android.app.Notification
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
-import se.kth.stepchallenge.MainActivity
-import se.kth.stepchallenge.StepChallengeApplication
+import kth.se.labb3.stepchallenge.MainActivity
+import kth.se.labb3.stepchallenge.StepChallengeApplication
 
 /**
  * Foreground service for continuous step tracking.
- * This service runs in the background and periodically syncs step data.
  */
 class StepCounterService : Service() {
 
@@ -60,7 +63,6 @@ class StepCounterService : Service() {
     private fun startStepTracking() {
         serviceScope.launch {
             while (isRunning) {
-                // Sync step data periodically
                 syncStepData()
                 delay(SYNC_INTERVAL_MS)
             }
@@ -68,11 +70,8 @@ class StepCounterService : Service() {
     }
 
     private suspend fun syncStepData() {
-        // This would typically use the StepRepository to sync data
-        // For now, this is a placeholder
         try {
             // TODO: Inject StepRepository and sync data
-            // stepRepository.syncTodayData(userId, dailyGoal)
         } catch (e: Exception) {
             // Log error but don't crash
         }
@@ -90,7 +89,7 @@ class StepCounterService : Service() {
         return NotificationCompat.Builder(this, StepChallengeApplication.NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Step Challenge")
             .setContentText("Tracking your steps...")
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Replace with your app icon
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setSilent(true)

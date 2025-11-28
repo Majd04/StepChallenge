@@ -1,4 +1,4 @@
-package se.kth.stepchallenge.viewmodel
+package kth.se.labb3.stepchallenge.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import se.kth.stepchallenge.data.model.LeaderboardEntry
-import se.kth.stepchallenge.data.model.LeaderboardPeriod
-import se.kth.stepchallenge.data.repository.LeaderboardRepository
+import kth.se.labb3.stepchallenge.data.model.LeaderboardEntry
+import kth.se.labb3.stepchallenge.data.model.LeaderboardPeriod
+import kth.se.labb3.stepchallenge.data.repository.LeaderboardRepository
 
 /**
  * UI state for leaderboard screen.
@@ -54,7 +54,6 @@ class LeaderboardViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            // Collect leaderboard updates
             leaderboardRepository.getLeaderboardFlow(
                 period = _uiState.value.selectedPeriod,
                 currentUserId = userId
@@ -68,7 +67,6 @@ class LeaderboardViewModel(
                     currentUserSteps = currentUserEntry?.steps ?: 0
                 )
 
-                // Calculate steps needed for next rank and first place
                 calculateStepsNeeded(userId)
             }
         }
@@ -93,14 +91,12 @@ class LeaderboardViewModel(
             val period = _uiState.value.selectedPeriod
 
             if (currentRank > 1) {
-                // Calculate steps to next rank
                 val stepsToNext = leaderboardRepository.getStepsNeededForRank(
                     targetRank = currentRank - 1,
                     period = period,
                     currentUserId = userId
                 )
 
-                // Calculate steps to first place
                 val stepsToFirst = if (currentRank > 1) {
                     leaderboardRepository.getStepsNeededForRank(
                         targetRank = 1,

@@ -1,4 +1,4 @@
-package se.kth.stepchallenge.data.repository
+package kth.se.labb3.stepchallenge.data.repository
 
 import android.content.Context
 import android.util.Log
@@ -11,9 +11,9 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import se.kth.stepchallenge.data.local.StepDataDao
-import se.kth.stepchallenge.data.model.DailyStepSummary
-import se.kth.stepchallenge.data.model.StepData
+import kth.se.labb3.stepchallenge.data.dao.StepDataDao
+import kth.se.labb3.stepchallenge.data.model.DailyStepSummary
+import kth.se.labb3.stepchallenge.data.model.StepData
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime

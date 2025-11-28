@@ -1,4 +1,4 @@
-package se.kth.stepchallenge.viewmodel
+package kth.se.labb3.stepchallenge.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -8,11 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import se.kth.stepchallenge.data.local.StepChallengeDatabase
-import se.kth.stepchallenge.data.model.DailyStepSummary
-import se.kth.stepchallenge.data.model.StepData
-import se.kth.stepchallenge.data.repository.LeaderboardRepository
-import se.kth.stepchallenge.data.repository.StepRepository
+import kth.se.labb3.stepchallenge.data.local.StepChallengeDatabase
+import kth.se.labb3.stepchallenge.data.model.DailyStepSummary
+import kth.se.labb3.stepchallenge.data.repository.LeaderboardRepository
+import kth.se.labb3.stepchallenge.data.repository.StepRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -102,14 +101,14 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
                 // Calculate weekly steps
                 val today = LocalDate.now()
                 val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val weeklySteps = calculateWeeklySteps(userId, startOfWeek, today)
+                val weeklySteps = calculateWeeklySteps(startOfWeek, today)
 
                 // Calculate monthly steps
                 val startOfMonth = today.withDayOfMonth(1)
-                val monthlySteps = calculateMonthlySteps(userId, startOfMonth, today)
+                val monthlySteps = calculateMonthlySteps(startOfMonth, today)
 
                 // Get weekly data for chart
-                val weeklyData = getWeeklyChartData(userId, startOfWeek, today)
+                val weeklyData = getWeeklyChartData(startOfWeek, today)
 
                 val dailyGoal = _uiState.value.dailyGoal
                 val goalProgress = if (dailyGoal > 0) {
@@ -163,7 +162,7 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
                     userId = userId,
                     weeklySteps = weeklySteps,
                     monthlySteps = monthlySteps,
-                    totalSteps = monthlySteps // Simplified, should track all-time
+                    totalSteps = monthlySteps
                 )
 
                 // Reload data
@@ -186,7 +185,7 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     fun startAutoSync() {
         viewModelScope.launch {
             while (true) {
-                delay(60_000) // 1 minute
+                delay(60_000)
                 if (_uiState.value.hasHealthConnectPermission) {
                     syncStepData()
                 }
@@ -214,7 +213,6 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun calculateWeeklySteps(
-        userId: String,
         startDate: LocalDate,
         endDate: LocalDate
     ): Long {
@@ -223,7 +221,6 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun calculateMonthlySteps(
-        userId: String,
         startDate: LocalDate,
         endDate: LocalDate
     ): Long {
@@ -232,7 +229,6 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun getWeeklyChartData(
-        userId: String,
         startDate: LocalDate,
         endDate: LocalDate
     ): List<DailyStepSummary> {

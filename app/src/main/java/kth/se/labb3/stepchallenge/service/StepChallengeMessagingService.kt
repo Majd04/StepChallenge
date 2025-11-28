@@ -8,9 +8,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import se.kth.stepchallenge.MainActivity
-import se.kth.stepchallenge.R
-import se.kth.stepchallenge.StepChallengeApplication
+import kth.se.labb3.stepchallenge.MainActivity
+import kth.se.labb3.stepchallenge.StepChallengeApplication
 
 /**
  * Firebase Cloud Messaging service for handling push notifications.
@@ -32,7 +31,6 @@ class StepChallengeMessagingService : FirebaseMessagingService() {
 
         Log.d(TAG, "Message received from: ${message.from}")
 
-        // Handle notification payload
         message.notification?.let { notification ->
             showNotification(
                 title = notification.title ?: "Step Challenge",
@@ -40,7 +38,6 @@ class StepChallengeMessagingService : FirebaseMessagingService() {
             )
         }
 
-        // Handle data payload
         if (message.data.isNotEmpty()) {
             handleDataMessage(message.data)
         }
@@ -62,7 +59,7 @@ class StepChallengeMessagingService : FirebaseMessagingService() {
             this,
             StepChallengeApplication.NOTIFICATION_CHANNEL_ID
         )
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Replace with your app icon
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

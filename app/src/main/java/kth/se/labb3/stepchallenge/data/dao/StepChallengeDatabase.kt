@@ -1,10 +1,10 @@
-package kth.se.labb3.stepchallenge.data.DAO.
+package kth.se.labb3.stepchallenge.data.dao
 
 import android.content.Context
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
-import se.kth.stepchallenge.data.model.StepData
-import se.kth.stepchallenge.data.model.User
+import kth.se.labb3.stepchallenge.data.model.StepData
+import kth.se.labb3.stepchallenge.data.model.User
 
 /**
  * DAO for User operations.

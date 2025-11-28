@@ -12,9 +12,9 @@ import java.time.format.DateTimeFormatter
 @Entity(tableName = "step_data")
 data class StepData(
     @PrimaryKey
-    val id: String = "", // Format: "{userId}_{date}"
+    val id: String = "",
     val userId: String = "",
-    val date: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE), // YYYY-MM-DD
+    val date: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
     val steps: Long = 0,
     val caloriesBurned: Double = 0.0,
     val distanceMeters: Double = 0.0,
@@ -54,9 +54,6 @@ data class StepData(
             lastUpdated = (map["lastUpdated"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
 
-        /**
-         * Create ID for a specific user and date.
-         */
         fun createId(userId: String, date: LocalDate): String =
             "${userId}_${date.format(DateTimeFormatter.ISO_DATE)}"
     }
