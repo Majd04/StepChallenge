@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "237708434894",
+    "project_id": "stepchallenge-aa67b",
+    "storage_bucket": "stepchallenge-aa67b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237708434894:android:9dd5640db3c96234161f9f",
+        "android_client_info": {
+          "package_name": "kth.se.labb3.stepchallenge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3eD1mccY7NSLi6K5WOJjoxSsAQyXi3I0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

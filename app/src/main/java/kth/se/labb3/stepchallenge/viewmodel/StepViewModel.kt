@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kth.se.labb3.stepchallenge.data.local.StepChallengeDatabase
+import kth.se.labb3.stepchallenge.data.dao.StepChallengeDatabase
 import kth.se.labb3.stepchallenge.data.model.DailyStepSummary
 import kth.se.labb3.stepchallenge.data.repository.LeaderboardRepository
 import kth.se.labb3.stepchallenge.data.repository.StepRepository

@@ -1,287 +1,123 @@
 package kth.se.labb3.stepchallenge.data.repository
 
-import android.content.Context
-import android.util.Log
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.records.DistanceRecord
-import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
-import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.time.TimeRangeFilter
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kth.se.labb3.stepchallenge.data.dao.StepDataDao
-import kth.se.labb3.stepchallenge.data.model.DailyStepSummary
-import kth.se.labb3.stepchallenge.data.model.StepData
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import kth.se.labb3.stepchallenge.data.model.User
 
 /**
- * Repository for managing step data from Health Connect and local database.
+ * Result wrapper for authentication operations.
  */
-class StepRepository(
-    private val context: Context,
-    private val stepDataDao: StepDataDao
+sealed class AuthResult<out T> {
+    data class Success<T>(val data: T) : AuthResult<T>()
+    data class Error(val message: String) : AuthResult<Nothing>()
+    data object Loading : AuthResult<Nothing>()
+}
+
+/**
+ * Repository for handling Firebase Authentication.
+ */
+class AuthRepository(
+    private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    private val healthConnectClient: HealthConnectClient? by lazy {
-        try {
-            HealthConnectClient.getOrCreate(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Health Connect not available", e)
-            null
+    /**
+     * Get the current logged in user.
+     */
+    val currentUser: FirebaseUser?
+        get() = firebaseAuth.currentUser
+
+    /**
+     * Flow that emits auth state changes.
+     */
+    val authStateFlow: Flow<FirebaseUser?> = callbackFlow {
+        val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser)
+        }
+        firebaseAuth.addAuthStateListener(authStateListener)
+        awaitClose {
+            firebaseAuth.removeAuthStateListener(authStateListener)
         }
     }
 
-    companion object {
-        private const val TAG = "StepRepository"
-
-        val PERMISSIONS = setOf(
-            HealthPermission.getReadPermission(StepsRecord::class),
-            HealthPermission.getWritePermission(StepsRecord::class),
-            HealthPermission.getReadPermission(DistanceRecord::class),
-            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
-        )
-    }
-
     /**
-     * Check if Health Connect is available on this device.
+     * Register a new user with email and password.
      */
-    fun isHealthConnectAvailable(): Boolean {
-        return HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
-    }
-
-    /**
-     * Check if all required permissions are granted.
-     */
-    suspend fun hasAllPermissions(): Boolean {
-        val client = healthConnectClient ?: return false
+    suspend fun register(
+        email: String,
+        password: String,
+        displayName: String
+    ): AuthResult<FirebaseUser> {
         return try {
-            val granted = client.permissionController.getGrantedPermissions()
-            PERMISSIONS.all { it in granted }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error checking permissions", e)
-            false
-        }
-    }
+            val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            val user = result.user
 
-    /**
-     * Get today's step data from Health Connect.
-     */
-    suspend fun getTodayStepsFromHealthConnect(): Long {
-        val client = healthConnectClient ?: return 0L
+            // Update display name
+            user?.updateProfile(
+                UserProfileChangeRequest.Builder()
+                    .setDisplayName(displayName)
+                    .build()
+            )?.await()
 
-        return try {
-            val today = LocalDate.now()
-            val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val now = Instant.now()
-
-            val response = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startOfDay, now)
-                )
-            )
-
-            response.records.sumOf { it.count }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading steps from Health Connect", e)
-            0L
-        }
-    }
-
-    /**
-     * Get steps for a specific date range from Health Connect.
-     */
-    suspend fun getStepsFromHealthConnect(startDate: LocalDate, endDate: LocalDate): Map<LocalDate, Long> {
-        val client = healthConnectClient ?: return emptyMap()
-
-        return try {
-            val startInstant = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val endInstant = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
-
-            val response = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startInstant, endInstant)
-                )
-            )
-
-            response.records
-                .groupBy { record ->
-                    LocalDateTime.ofInstant(record.startTime, ZoneId.systemDefault()).toLocalDate()
-                }
-                .mapValues { (_, records) ->
-                    records.sumOf { it.count }
-                }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading steps for range", e)
-            emptyMap()
-        }
-    }
-
-    /**
-     * Get today's distance from Health Connect.
-     */
-    suspend fun getTodayDistanceFromHealthConnect(): Double {
-        val client = healthConnectClient ?: return 0.0
-
-        return try {
-            val today = LocalDate.now()
-            val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val now = Instant.now()
-
-            val response = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startOfDay, now)
-                )
-            )
-
-            response.records.sumOf { it.distance.inMeters }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading distance", e)
-            0.0
-        }
-    }
-
-    /**
-     * Get today's calories burned from Health Connect.
-     */
-    suspend fun getTodayCaloriesFromHealthConnect(): Double {
-        val client = healthConnectClient ?: return 0.0
-
-        return try {
-            val today = LocalDate.now()
-            val startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val now = Instant.now()
-
-            val response = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(startOfDay, now)
-                )
-            )
-
-            response.records.sumOf { it.energy.inKilocalories }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading calories", e)
-            0.0
-        }
-    }
-
-    /**
-     * Save step data to local database.
-     */
-    suspend fun saveStepData(stepData: StepData) {
-        stepDataDao.insertStepData(stepData.generateId())
-    }
-
-    /**
-     * Get step data for a user and date from local database.
-     */
-    suspend fun getStepData(userId: String, date: LocalDate): StepData? {
-        return stepDataDao.getStepDataForDate(
-            userId,
-            date.format(DateTimeFormatter.ISO_DATE)
-        )
-    }
-
-    /**
-     * Get step data flow for today.
-     */
-    fun getTodayStepDataFlow(userId: String): Flow<StepData?> {
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
-        return stepDataDao.getStepDataForDateFlow(userId, today)
-    }
-
-    /**
-     * Get step data for a date range.
-     */
-    fun getStepDataForRange(
-        userId: String,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): Flow<List<StepData>> {
-        return stepDataDao.getStepDataForRange(
-            userId,
-            startDate.format(DateTimeFormatter.ISO_DATE),
-            endDate.format(DateTimeFormatter.ISO_DATE)
-        )
-    }
-
-    /**
-     * Get daily step summaries for chart display.
-     */
-    fun getDailyStepSummaries(
-        userId: String,
-        startDate: LocalDate,
-        endDate: LocalDate,
-        dailyGoal: Int
-    ): Flow<List<DailyStepSummary>> {
-        return getStepDataForRange(userId, startDate, endDate).map { stepDataList ->
-            stepDataList.map { stepData ->
-                DailyStepSummary(
-                    date = LocalDate.parse(stepData.date),
-                    steps = stepData.steps,
-                    goal = dailyGoal
-                )
+            if (user != null) {
+                AuthResult.Success(user)
+            } else {
+                AuthResult.Error("Registration failed: User is null")
             }
+        } catch (e: Exception) {
+            AuthResult.Error(e.message ?: "Registration failed")
         }
     }
 
     /**
-     * Get total steps for a date range.
+     * Login with email and password.
      */
-    suspend fun getTotalStepsForRange(
-        userId: String,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): Long {
-        return stepDataDao.getTotalStepsForRange(
-            userId,
-            startDate.format(DateTimeFormatter.ISO_DATE),
-            endDate.format(DateTimeFormatter.ISO_DATE)
-        ) ?: 0L
+    suspend fun login(email: String, password: String): AuthResult<FirebaseUser> {
+        return try {
+            val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            val user = result.user
+
+            if (user != null) {
+                AuthResult.Success(user)
+            } else {
+                AuthResult.Error("Login failed: User is null")
+            }
+        } catch (e: Exception) {
+            AuthResult.Error(e.message ?: "Login failed")
+        }
     }
 
     /**
-     * Sync today's data from Health Connect to local database.
+     * Logout the current user.
      */
-    suspend fun syncTodayData(userId: String, dailyGoal: Int): StepData {
-        val steps = getTodayStepsFromHealthConnect()
-        val distance = getTodayDistanceFromHealthConnect()
-        val calories = getTodayCaloriesFromHealthConnect()
-        val today = LocalDate.now()
-
-        val stepData = StepData(
-            userId = userId,
-            date = today.format(DateTimeFormatter.ISO_DATE),
-            steps = steps,
-            distanceMeters = distance,
-            caloriesBurned = calories,
-            goalReached = steps >= dailyGoal,
-            syncedToCloud = false
-        ).generateId()
-
-        saveStepData(stepData)
-        return stepData
+    fun logout() {
+        firebaseAuth.signOut()
     }
 
     /**
-     * Get unsynced data for cloud sync.
+     * Send password reset email.
      */
-    suspend fun getUnsyncedData(): List<StepData> {
-        return stepDataDao.getUnsyncedData()
+    suspend fun sendPasswordResetEmail(email: String): AuthResult<Unit> {
+        return try {
+            firebaseAuth.sendPasswordResetEmail(email).await()
+            AuthResult.Success(Unit)
+        } catch (e: Exception) {
+            AuthResult.Error(e.message ?: "Failed to send password reset email")
+        }
     }
 
     /**
-     * Mark data as synced to cloud.
+     * Convert FirebaseUser to app User model.
      */
-    suspend fun markAsSynced(id: String) {
-        stepDataDao.markAsSynced(id)
+    fun firebaseUserToUser(firebaseUser: FirebaseUser): User {
+        return User(
+            id = firebaseUser.uid,
+            email = firebaseUser.email ?: "",
+            displayName = firebaseUser.displayName ?: "User",
+            photoUrl = firebaseUser.photoUrl?.toString()
+        )
     }
 }

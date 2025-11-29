@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "kth.se.labb3.stepchallenge"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "kth.se.labb3.stepchallenge"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
