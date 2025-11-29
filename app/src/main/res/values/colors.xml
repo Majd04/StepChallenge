@@ -7,4 +7,12 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Step Challenge Theme Colors -->
+    <color name="primary">#FF4CAF50</color>
+    <color name="primary_variant">#FF388E3C</color>
+    <color name="secondary">#FF03A9F4</color>
+    <color name="gold">#FFFFD700</color>
+    <color name="silver">#FFC0C0C0</color>
+    <color name="bronze">#FFCD7F32</color>
 </resources>
