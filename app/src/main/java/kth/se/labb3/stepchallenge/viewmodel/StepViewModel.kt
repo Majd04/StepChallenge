@@ -155,8 +155,8 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
                 val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val startOfMonth = today.withDayOfMonth(1)
 
-                val weeklySteps = stepRepository.getTotalStepsForRange(userId, startOfWeek, today) + stepData.steps
-                val monthlySteps = stepRepository.getTotalStepsForRange(userId, startOfMonth, today) + stepData.steps
+                val weeklySteps = calculateWeeklySteps(startOfWeek, today)
+                val monthlySteps = calculateMonthlySteps(startOfMonth, today)
 
                 leaderboardRepository.updateUserStepCounts(
                     userId = userId,
