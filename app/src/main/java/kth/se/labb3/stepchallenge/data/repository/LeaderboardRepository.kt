@@ -6,6 +6,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kth.se.labb3.stepchallenge.data.model.LeaderboardEntry
 import kth.se.labb3.stepchallenge.data.model.LeaderboardPeriod
@@ -26,6 +27,9 @@ class LeaderboardRepository(
         private const val STEP_DATA_COLLECTION = "step_data"
     }
 
+    // Cache for user display names
+    private val userNameCache = mutableMapOf<String, String>()
+
     /**
      * Create or update user in Firestore.
      */
@@ -35,6 +39,10 @@ class LeaderboardRepository(
                 .document(user.id)
                 .set(user.toFirebaseMap())
                 .await()
+
+            // Update cache
+            userNameCache[user.id] = user.displayName
+
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Error creating/updating user", e)
@@ -52,10 +60,31 @@ class LeaderboardRepository(
                 .get()
                 .await()
 
-            doc.data?.let { User.fromFirebaseMap(it) }
+            doc.data?.let {
+                val user = User.fromFirebaseMap(it)
+                // Update cache
+                userNameCache[user.id] = user.displayName
+                user
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting user", e)
             null
+        }
+    }
+
+    /**
+     * Get display name for a user (with caching).
+     */
+    private suspend fun getDisplayName(userId: String): String {
+        // Check cache first
+        userNameCache[userId]?.let { return it }
+
+        // Fetch from Firestore
+        return try {
+            val user = getUser(userId)
+            user?.displayName ?: "User"
+        } catch (e: Exception) {
+            "User"
         }
     }
 
@@ -185,7 +214,7 @@ class LeaderboardRepository(
     }
 
     /**
-     * Get daily leaderboard (today's steps).
+     * Get daily leaderboard (today's steps) - FIXED to fetch user display names.
      */
     private fun getDailyLeaderboardFlow(currentUserId: String, limit: Int): Flow<List<LeaderboardEntry>> {
         val today = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
@@ -201,18 +230,34 @@ class LeaderboardRepository(
                         return@addSnapshotListener
                     }
 
-                    val entries = snapshot?.documents?.mapIndexed { index, doc ->
-                        val stepData = doc.data?.let { StepData.fromFirebaseMap(it) }
-                        LeaderboardEntry(
-                            rank = index + 1,
-                            userId = stepData?.userId ?: "",
-                            displayName = "User",
-                            steps = stepData?.steps ?: 0,
-                            isCurrentUser = stepData?.userId == currentUserId
-                        )
+                    // Get step data entries
+                    val stepDataList = snapshot?.documents?.mapNotNull { doc ->
+                        doc.data?.let { StepData.fromFirebaseMap(it) }
                     } ?: emptyList()
 
-                    trySend(entries)
+                    // Fetch user names and create entries
+                    val entries = mutableListOf<LeaderboardEntry>()
+
+                    // Use coroutine to fetch user names
+                    kotlinx.coroutines.GlobalScope.launch {
+                        stepDataList.forEachIndexed { index, stepData ->
+                            val displayName = getDisplayName(stepData.userId)
+                            val user = getUser(stepData.userId)
+
+                            entries.add(
+                                LeaderboardEntry(
+                                    rank = index + 1,
+                                    userId = stepData.userId,
+                                    displayName = displayName,
+                                    photoUrl = user?.photoUrl,
+                                    steps = stepData.steps,
+                                    isCurrentUser = stepData.userId == currentUserId
+                                )
+                            )
+                        }
+
+                        trySend(entries.toList())
+                    }
                 }
 
             awaitClose { listener.remove() }

@@ -1,6 +1,8 @@
 package kth.se.labb3.stepchallenge.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -12,6 +14,7 @@ import kth.se.labb3.stepchallenge.data.dao.StepChallengeDatabase
 import kth.se.labb3.stepchallenge.data.model.DailyStepSummary
 import kth.se.labb3.stepchallenge.data.repository.LeaderboardRepository
 import kth.se.labb3.stepchallenge.data.repository.StepRepository
+import kth.se.labb3.stepchallenge.service.StepCounterService
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -32,7 +35,8 @@ data class StepUiState(
     val hasHealthConnectPermission: Boolean = false,
     val isHealthConnectAvailable: Boolean = false,
     val error: String? = null,
-    val lastSyncTime: Long = 0
+    val lastSyncTime: Long = 0,
+    val goalSaved: Boolean = false  // For showing save confirmation
 )
 
 /**
@@ -44,13 +48,34 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     private val stepRepository = StepRepository(application, database.stepDataDao())
     private val leaderboardRepository = LeaderboardRepository()
 
+    // SharedPreferences for persistent storage
+    private val prefs: SharedPreferences = application.getSharedPreferences(
+        PREFS_NAME, Context.MODE_PRIVATE
+    )
+
     private val _uiState = MutableStateFlow(StepUiState())
     val uiState: StateFlow<StepUiState> = _uiState.asStateFlow()
 
     private var currentUserId: String? = null
 
+    companion object {
+        private const val PREFS_NAME = "step_challenge_settings"
+        private const val KEY_DAILY_GOAL = "daily_goal"
+        private const val DEFAULT_DAILY_GOAL = 10000
+    }
+
     init {
         checkHealthConnectAvailability()
+        // Load saved daily goal from SharedPreferences
+        loadSavedDailyGoal()
+    }
+
+    /**
+     * Load saved daily goal from SharedPreferences.
+     */
+    private fun loadSavedDailyGoal() {
+        val savedGoal = prefs.getInt(KEY_DAILY_GOAL, DEFAULT_DAILY_GOAL)
+        _uiState.value = _uiState.value.copy(dailyGoal = savedGoal)
     }
 
     /**
@@ -194,15 +219,32 @@ class StepViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Update daily goal.
+     * Update daily goal and save to SharedPreferences.
      */
     fun updateDailyGoal(goal: Int) {
+        // Save to SharedPreferences (persistent)
+        prefs.edit().putInt(KEY_DAILY_GOAL, goal).apply()
+
+        // Update UI state
         _uiState.value = _uiState.value.copy(
             dailyGoal = goal,
             goalProgress = if (goal > 0) {
                 (_uiState.value.todaySteps.toFloat() / goal).coerceAtMost(1f)
-            } else 0f
+            } else 0f,
+            goalSaved = true
         )
+
+        // Update background service with new goal
+        val context = getApplication<Application>()
+        currentUserId?.let { userId ->
+            StepCounterService.start(context, userId, goal)
+        }
+
+        // Reset goalSaved flag after a delay
+        viewModelScope.launch {
+            delay(2000)
+            _uiState.value = _uiState.value.copy(goalSaved = false)
+        }
     }
 
     /**

@@ -1,7 +1,10 @@
 package kth.se.labb3.stepchallenge
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,12 +16,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import androidx.navigation.compose.rememberNavController
 import kth.se.labb3.stepchallenge.data.repository.StepRepository
+import kth.se.labb3.stepchallenge.service.StepCounterService
 import kth.se.labb3.stepchallenge.ui.navigation.StepChallengeNavHost
 import kth.se.labb3.stepchallenge.ui.theme.StepChallengeTheme
 import kth.se.labb3.stepchallenge.viewmodel.AuthViewModel
@@ -37,11 +42,25 @@ class MainActivity : ComponentActivity() {
     ) { granted ->
         if (granted.containsAll(StepRepository.PERMISSIONS)) {
             stepViewModel.checkPermissions()
+            // Start background service when permissions granted
+            startStepCounterService()
+        }
+    }
+
+    // Notification permission request launcher (Android 13+)
+    private val notificationPermissionRequest = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, service can show notifications
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Request notification permission for Android 13+
+        requestNotificationPermission()
 
         setContent {
             StepChallengeTheme {
@@ -56,6 +75,9 @@ class MainActivity : ComponentActivity() {
                     authState.user?.let { user ->
                         stepViewModel.setUserId(user.id)
                         leaderboardViewModel.setUserId(user.id)
+
+                        // Start background step tracking service
+                        startStepCounterService(user.id)
                     }
 
                     StepChallengeNavHost(
@@ -71,6 +93,42 @@ class MainActivity : ComponentActivity() {
         }
 
         checkHealthConnectAvailability()
+    }
+
+    /**
+     * Request notification permission for Android 13+.
+     */
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                }
+                else -> {
+                    // Request permission
+                    notificationPermissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
+
+    /**
+     * Start the background step counter service.
+     */
+    private fun startStepCounterService(userId: String? = null) {
+        val user = authViewModel.uiState.value.user
+        val dailyGoal = stepViewModel.uiState.value.dailyGoal
+
+        if (user != null || userId != null) {
+            StepCounterService.start(
+                context = this,
+                userId = userId ?: user?.id,
+                dailyGoal = dailyGoal
+            )
+        }
     }
 
     private fun checkHealthConnectAvailability() {
@@ -115,6 +173,15 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (authViewModel.uiState.value.isLoggedIn) {
             stepViewModel.checkPermissions()
+            // Restart service to ensure it's running
+            startStepCounterService()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Note: We don't stop the service here because we want it to continue
+        // tracking steps in the background. It will be stopped when the user
+        // logs out or explicitly stops it.
     }
 }

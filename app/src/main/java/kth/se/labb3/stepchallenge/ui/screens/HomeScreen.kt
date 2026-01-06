@@ -1,5 +1,7 @@
 package kth.se.labb3.stepchallenge.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -18,6 +20,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,7 @@ fun HomeScreen(
 ) {
     val uiState by stepViewModel.uiState.collectAsState()
     val numberFormat = remember { NumberFormat.getNumberInstance(Locale.getDefault()) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         stepViewModel.checkPermissions()
@@ -46,6 +50,10 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Step Challenge") },
                 actions = {
+                    // Share button
+                    IconButton(onClick = { shareSteps(context, uiState.weeklySteps) }) {
+                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    }
                     IconButton(onClick = onNavigateToLeaderboard) {
                         Icon(Icons.Default.Leaderboard, contentDescription = "Leaderboard")
                     }
@@ -172,6 +180,48 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Share Card
+            Card(
+                onClick = { shareSteps(context, uiState.weeklySteps) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Share your progress!",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Challenge your friends to beat you",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Stats Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -282,6 +332,32 @@ fun HomeScreen(
             }
         }
     }
+}
+
+/**
+ * Share step count via Android Share Sheet.
+ * Uses SMS, WhatsApp, email, or any other sharing app.
+ */
+private fun shareSteps(context: Context, weeklySteps: Long) {
+    val numberFormat = NumberFormat.getNumberInstance(Locale.getDefault())
+    val formattedSteps = numberFormat.format(weeklySteps)
+
+    val shareText = """
+        🏃 This week I have walked $formattedSteps steps!
+        
+        Think you can beat me? Try catching up using the Step Challenge app!
+        
+        #StepChallenge #Fitness #Walking
+    """.trimIndent()
+
+    val sendIntent = Intent().apply {
+        action = Intent.ACTION_SEND
+        putExtra(Intent.EXTRA_TEXT, shareText)
+        type = "text/plain"
+    }
+
+    val shareIntent = Intent.createChooser(sendIntent, "Share your steps via...")
+    context.startActivity(shareIntent)
 }
 
 @Composable

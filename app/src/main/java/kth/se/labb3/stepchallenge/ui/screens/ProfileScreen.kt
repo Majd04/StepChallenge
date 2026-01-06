@@ -221,7 +221,18 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit
 ) {
     val stepState by stepViewModel.uiState.collectAsState()
-    var dailyGoal by remember { mutableStateOf(stepState.dailyGoal.toString()) }
+    var dailyGoal by remember(stepState.dailyGoal) { mutableStateOf(stepState.dailyGoal.toString()) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show snackbar when goal is saved
+    LaunchedEffect(stepState.goalSaved) {
+        if (stepState.goalSaved) {
+            snackbarHostState.showSnackbar(
+                message = "✓ Daily goal saved!",
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -233,7 +244,8 @@ fun SettingsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -269,11 +281,19 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             dailyGoal.toIntOrNull()?.let { goal ->
-                                stepViewModel.updateDailyGoal(goal)
+                                if (goal > 0) {
+                                    stepViewModel.updateDailyGoal(goal)
+                                }
                             }
                         },
                         modifier = Modifier.align(Alignment.End)
                     ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text("Save")
                     }
                 }
