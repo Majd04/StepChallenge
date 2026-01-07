@@ -56,6 +56,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Activity Recognition permission request launcher (required for foreground service health)
+    private val activityRecognitionPermissionRequest = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, now we can start the service
+            startStepCounterServiceIfReady()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -116,9 +126,34 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Start the background step counter service.
+     * Start the background step counter service (only if permissions granted).
      */
     private fun startStepCounterService(userId: String? = null) {
+        // Check if ACTIVITY_RECOGNITION permission is granted first
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACTIVITY_RECOGNITION
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission granted, start service
+                    startStepCounterServiceIfReady(userId)
+                }
+                else -> {
+                    // Request permission
+                    activityRecognitionPermissionRequest.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                }
+            }
+        } else {
+            // No permission needed for older Android versions
+            startStepCounterServiceIfReady(userId)
+        }
+    }
+
+    /**
+     * Actually start the service after permissions are confirmed.
+     */
+    private fun startStepCounterServiceIfReady(userId: String? = null) {
         val user = authViewModel.uiState.value.user
         val dailyGoal = stepViewModel.uiState.value.dailyGoal
 
